@@ -95,14 +95,13 @@ jobs:
           TAG="${GITHUB_REF#refs/tags/}"
           BODY=$(cat release_notes.md | jq -Rs .)
           echo "Create GitCode release..."
-          curl -s -X POST "https://gitcode.com/api/v1/repos/weixin_45444393/one-modbus/releases" \
+          curl -s --connect-timeout 30 --max-time 60 -X POST "https://gitcode.com/api/v1/repos/weixin_45444393/one-modbus/releases" \
             -H "Content-Type: application/json" \
             -H "PRIVATE-TOKEN: ${TOKEN}" \
-            -H "User-Agent: GitHub-Actions" \
             -d "{\"tag_name\":\"${TAG}\",\"name\":\"one-modbus ${TAG}\",\"body\":${BODY}}"
           echo ""
           echo "Upload exe to GitCode..."
-          curl -s -X POST "https://gitcode.com/api/v1/repos/weixin_45444393/one-modbus/releases/${TAG}/assets" \
+          curl -s --connect-timeout 30 --max-time 120 -X POST "https://gitcode.com/api/v1/repos/weixin_45444393/one-modbus/releases/${TAG}/assets" \
             -H "PRIVATE-TOKEN: ${TOKEN}" \
             -H "User-Agent: GitHub-Actions" \
             -F "file=@modbusrtu_broker.exe"
