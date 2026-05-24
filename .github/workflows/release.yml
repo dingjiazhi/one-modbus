@@ -71,7 +71,7 @@ jobs:
           - Windows amd64 单文件 exe，无需安装，解压即用
           - 配置方法：同级目录放 项目变量信息.xlsx（没有会自动生成模板）
           - 双击 modbusrtu_broker.exe 启动
-          - 浏览器打开 http://localhost:53046/ 查看数据" >> release_notes.md
+          - 浏览器打开 http://127.0.0.1:53046/统计 即可进入，未登录会自动引导。登录后即可查看所有 API 调用链接和数据" >> release_notes.md
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
