@@ -29,15 +29,10 @@ jobs:
 
       - name: Build EXE (CGO cross-compile for go-sqlite3)
         run: |
-          # 更新编译时间戳
           BUILD_TIME=$(TZ='Asia/Shanghai' date '+%Y-%m-%d %H:%M')
           sed -i "s/编译时间: [0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\} [0-9]\{2\}:[0-9]\{2\}/编译时间: ${BUILD_TIME}/" modbusrtu_broker.go
-          CGO_ENABLED=1 \
-          GOOS=windows \
-          GOARCH=amd64 \
-          CC=x86_64-w64-mingw32-gcc \
-          CGO_CFLAGS="-D_WIN32" \
-          CGO_LDFLAGS="-lws2_32" \
+          CGO_ENABLED=1 GOOS=windows GOARCH=amd64 CC=x86_64-w64-mingw32-gcc \
+          CGO_CFLAGS="-D_WIN32" CGO_LDFLAGS="-lws2_32" \
           go build -ldflags '-s -w -extldflags=-static' -o modbusrtu_broker.exe modbusrtu_broker.go
 
       - name: Upload artifact
@@ -47,7 +42,7 @@ jobs:
           path: modbusrtu_broker.exe
 
   release:
-    name: Create Release
+    name: Create GitHub Release
     if: startsWith(github.ref, 'refs/tags/v')
     needs: build
     runs-on: ubuntu-latest
@@ -78,7 +73,25 @@ jobs:
           draft: false
           prerelease: false
 
-      - name: Sync to Gitee Release
+      - name: Upload release notes for downstream jobs
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-notes
+          path: release_notes.md
+
+  sync-gitee:
+    name: Sync to Gitee
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [build, release]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: one-modbus-windows-amd64
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-notes
+      - name: Upload to Gitee
         env:
           TOKEN: ${{ secrets.GITEE_TOKEN }}
         run: |
@@ -98,7 +111,19 @@ jobs:
             echo "Gitee response: $RESP"
           fi
 
-      - name: Sync to GitCode Release
+  sync-gitcode:
+    name: Sync to GitCode
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [build, release]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: one-modbus-windows-amd64
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-notes
+      - name: Upload to GitCode
         env:
           TOKEN: ${{ secrets.GITCODE_TOKEN }}
         run: |
