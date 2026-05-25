@@ -112,15 +112,22 @@ jobs:
           TOKEN: ${{ secrets.GITEE_TOKEN }}
         run: |
           TAG="${GITHUB_REF#refs/tags/}"
-          BODY=$(cat release_notes.md | jq -Rs .)
+          # 用 jq 构建 JSON body，避免 shell 转义问题
+          jq -n --arg tag "$TAG" --arg name "one-modbus $TAG" \
+            --arg body "$(cat release_notes.md)" \
+            '{access_token: env.TOKEN, tag_name: $tag, name: $name, body: $body, target_commitish: "master"}' \
+            > /tmp/gitee_release_payload.json
+
           echo "Create Gitee release..."
-          RESP=$(curl -s -X POST "https://gitee.com/api/v5/repos/dingjiazhi/one-modbus/releases" \
+          RESP=$(curl -s --connect-timeout 30 --max-time 60 -X POST \
+            "https://gitee.com/api/v5/repos/dingjiazhi/one-modbus/releases" \
             -H "Content-Type: application/json" \
-            -d "{\"access_token\":\"${TOKEN}\",\"tag_name\":\"${TAG}\",\"name\":\"one-modbus ${TAG}\",\"body\":${BODY},\"target_commitish\":\"master\"}")
+            -d @/tmp/gitee_release_payload.json)
           RID=$(echo "$RESP" | jq -r '.id // "null"')
           if [ "$RID" != "null" ]; then
-            echo "Upload exe to Gitee..."
-            curl -s -X POST "https://gitee.com/api/v5/repos/dingjiazhi/one-modbus/releases/${RID}/attach_files" \
+            echo "Upload exe to Gitee (max 120s)..."
+            curl -s --connect-timeout 30 --max-time 120 -X POST \
+              "https://gitee.com/api/v5/repos/dingjiazhi/one-modbus/releases/${RID}/attach_files" \
               -F "access_token=${TOKEN}" \
               -F "file=@modbusrtu_broker.exe"
           else
