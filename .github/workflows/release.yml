@@ -204,12 +204,17 @@ jobs:
           ls -la /tmp/modbusrtu_broker.exe
           echo "::endgroup::"
 
-          # GitCode API 上传附件需指定 file_name
+          # GitCode API 上传附件需指定 file_name，返回的 headers 也要带上
           echo "::group::Get GitCode upload URL by tag name..."
-          UPLOAD_URL=$(curl -sS --connect-timeout 30 --max-time 30 \
+          UPLOAD_RESP=$(curl -sS --connect-timeout 30 --max-time 30 \
             "https://api.gitcode.com/api/v5/repos/weixin_45444393/one-modbus/releases/${TAG}/upload_url?file_name=modbusrtu_broker.exe" \
-            -H "Authorization: Bearer ${GITCODE_TOKEN}" | jq -r '.upload_url // empty')
-          echo "Upload URL: $UPLOAD_URL"
+            -H "Authorization: Bearer ${GITCODE_TOKEN}")
+          UPLOAD_URL=$(echo "$UPLOAD_RESP" | jq -r '.url // empty')
+          # 提取需要的请求头
+          OBS_ACL=$(echo "$UPLOAD_RESP" | jq -r '.headers["x-obs-acl"] // empty')
+          OBS_PROJECT_ID=$(echo "$UPLOAD_RESP" | jq -r '.headers["x-obs-meta-project-id"] // empty')
+          OBS_CALLBACK=$(echo "$UPLOAD_RESP" | jq -r '.headers["x-obs-callback"] // empty')
+          echo "Upload URL: ${UPLOAD_URL:0:80}..."
           echo "::endgroup::"
 
           if [ -z "$UPLOAD_URL" ]; then
@@ -220,6 +225,9 @@ jobs:
           echo "::group::Upload exe to GitCode..."
           UPLOAD_RESP=$(curl -sS --connect-timeout 30 --max-time 120 -X PUT "$UPLOAD_URL" \
             -H "Content-Type: application/octet-stream" \
+            -H "x-obs-acl: ${OBS_ACL}" \
+            -H "x-obs-meta-project-id: ${OBS_PROJECT_ID}" \
+            -H "x-obs-callback: ${OBS_CALLBACK}" \
             --data-binary "@/tmp/modbusrtu_broker.exe")
           echo "$UPLOAD_RESP" | jq '{name, size, state, message}' 2>/dev/null || echo "$UPLOAD_RESP"
           echo "::endgroup::"
