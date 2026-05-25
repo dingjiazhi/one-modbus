@@ -128,46 +128,102 @@ jobs:
           fi
 
   sync-gitcode:
-    name: Sync to GitCode (via Gitee CDN)
+    name: Sync to GitCode (artifact + Gitee CDN)
     if: startsWith(github.ref, 'refs/tags/v')
     needs: [build, release, sync-gitee]
     runs-on: ubuntu-latest
     steps:
-      - name: Download exe from Gitee (国内快), then upload to GitCode
+      - uses: actions/download-artifact@v4
+        with:
+          name: one-modbus-windows-amd64
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-notes
+
+      - name: Upload release notes to GitCode
+        env:
+          GITCODE_TOKEN: ${{ secrets.GITCODE_TOKEN }}
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          BODY=$(cat release_notes.md | jq -Rs .)
+
+          # 检查是否已有同名 release（避免重复创建报错）
+          echo "Check if GitCode release already exists..."
+          EXISTING=$(curl -s --connect-timeout 30 --max-time 30 \
+            "https://api.gitcode.com/api/v5/repos/weixin_45444393/one-modbus/releases/tags/${TAG}" \
+            -H "Authorization: Bearer ${GITCODE_TOKEN}")
+          EXISTING_ID=$(echo "$EXISTING" | jq -r '.id // empty')
+          if [ -n "$EXISTING_ID" ]; then
+            echo "Release ${TAG} already exists (id=$EXISTING_ID), skip creation"
+            echo "$EXISTING_ID" > /tmp/gitcode_release_id.txt
+          else
+            echo "Create GitCode release via v5 API..."
+            RESP=$(curl -s --connect-timeout 30 --max-time 60 -X POST \
+              "https://api.gitcode.com/api/v5/repos/weixin_45444393/one-modbus/releases" \
+              -H "Content-Type: application/json" \
+              -H "Authorization: Bearer ${GITCODE_TOKEN}" \
+              -d "{\"tag_name\":\"${TAG}\",\"name\":\"one-modbus ${TAG}\",\"body\":${BODY},\"target_commitish\":\"master\"}")
+            CREATED_ID=$(echo "$RESP" | jq -r '.id // empty')
+            if [ -n "$CREATED_ID" ]; then
+              echo "Created release id=$CREATED_ID"
+              echo "$CREATED_ID" > /tmp/gitcode_release_id.txt
+            else
+              echo "Create release failed:"
+              echo "$RESP" | jq '.' 2>/dev/null || echo "$RESP"
+              exit 1
+            fi
+          fi
+
+      - name: Upload exe to GitCode (from Gitee CDN, fallback to artifact)
         env:
           GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
           GITCODE_TOKEN: ${{ secrets.GITCODE_TOKEN }}
         run: |
           TAG="${GITHUB_REF#refs/tags/}"
-          echo "Download exe from Gitee release (国内快)..."
-          # 获取 Gitee Release 中 .exe 的下载地址
+          # 优先从 Gitee CDN 下载（国内快），失败才用 artifact
+          echo "Try to download exe from Gitee CDN..."
           GITEE_INFO=$(curl -s "https://gitee.com/api/v5/repos/dingjiazhi/one-modbus/releases/tags/${TAG}")
           EXE_URL=$(echo "$GITEE_INFO" | jq -r '.assets[] | select(.name | endswith(".exe")) | .browser_download_url // empty')
-          echo "Download URL: $EXE_URL"
-          if [ -z "$EXE_URL" ]; then
-            echo "No exe found in Gitee release, falling back to local artifact"
-            EXE_URL="modbusrtu_broker.exe"
-          fi
-          curl -sL -o /tmp/modbusrtu_broker.exe "$EXE_URL"
-          ls -la /tmp/modbusrtu_broker.exe
-          
-          echo "Create GitCode release via v5 API..."
-          BODY=$(cat release_notes.md 2>/dev/null || echo '{"body":"### one-modbus '"$TAG"'"}')
-          curl -s --connect-timeout 30 --max-time 60 -X POST "https://api.gitcode.com/api/v5/repos/weixin_45444393/one-modbus/releases" \
-            -H "Content-Type: application/json" \
-            -H "Authorization: Bearer ${GITCODE_TOKEN}" \
-            -d "{\"tag_name\":\"${TAG}\",\"name\":\"one-modbus ${TAG}\",\"body\":${BODY},\"target_commitish\":\"master\"}"
-          echo ""
-          echo "Get upload URL..."
-          UPLOAD_URL=$(curl -s --connect-timeout 30 --max-time 30 \
-            "https://api.gitcode.com/api/v5/repos/weixin_45444393/one-modbus/releases/${TAG}/upload_url" \
-            -H "Authorization: Bearer ${GITCODE_TOKEN}" | jq -r '.upload_url // empty')
-          echo "Upload URL: $UPLOAD_URL"
-          if [ -n "$UPLOAD_URL" ]; then
-            echo "Upload exe to GitCode..."
-            curl -s --connect-timeout 30 --max-time 120 -X PUT "$UPLOAD_URL" \
-              -H "Content-Type: application/octet-stream" \
-              --data-binary "@/tmp/modbusrtu_broker.exe"
+          if [ -n "$EXE_URL" ]; then
+            echo "Download from Gitee CDN: $EXE_URL"
+            curl -sL -o /tmp/modbusrtu_broker.exe "$EXE_URL"
           else
-            echo "No upload URL, upload failed"
+            echo "Gitee CDN not available, use local artifact"
+            cp modbusrtu_broker.exe /tmp/modbusrtu_broker.exe
           fi
+          ls -la /tmp/modbusrtu_broker.exe
+
+          # 获取 release ID（优先从上一步缓存读，避免重复查询）
+          RELEASE_ID=$(cat /tmp/gitcode_release_id.txt 2>/dev/null)
+          if [ -z "$RELEASE_ID" ]; then
+            echo "Get GitCode release info by tag..."
+            RELEASE_INFO=$(curl -s --connect-timeout 30 --max-time 30 \
+              "https://api.gitcode.com/api/v5/repos/weixin_45444393/one-modbus/releases/tags/${TAG}" \
+              -H "Authorization: Bearer ${GITCODE_TOKEN}")
+            RELEASE_ID=$(echo "$RELEASE_INFO" | jq -r '.id // empty')
+          fi
+          if [ -z "$RELEASE_ID" ]; then
+            echo "Failed to get release ID. Exiting."
+            exit 1
+          fi
+          echo "Release ID: $RELEASE_ID"
+
+          echo "Get upload URL by release ID..."
+          UPLOAD_URL=$(curl -s --connect-timeout 30 --max-time 30 \
+            "https://api.gitcode.com/api/v5/repos/weixin_45444393/one-modbus/releases/${RELEASE_ID}/upload_url" \
+            -H "Authorization: Bearer ${GITCODE_TOKEN}" | jq -r '.upload_url // empty')
+          if [ -z "$UPLOAD_URL" ]; then
+            echo "Failed to get upload URL. Response:"
+            curl -s "https://api.gitcode.com/api/v5/repos/weixin_45444393/one-modbus/releases/${RELEASE_ID}/upload_url" \
+              -H "Authorization: Bearer ${GITCODE_TOKEN}" | jq .
+            exit 1
+          fi
+          echo "Upload URL: $UPLOAD_URL"
+
+          echo "Upload exe to GitCode..."
+          UPLOAD_RESP=$(curl -s --connect-timeout 30 --max-time 120 -X PUT "$UPLOAD_URL" \
+            -H "Content-Type: application/octet-stream" \
+            --data-binary "@/tmp/modbusrtu_broker.exe")
+          echo "$UPLOAD_RESP" | jq '{name, size, state, message}' 2>/dev/null || echo "$UPLOAD_RESP"
+          echo ""
+          echo "✅ GitCode upload complete"
