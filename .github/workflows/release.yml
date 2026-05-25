@@ -145,31 +145,41 @@ jobs:
           GITCODE_TOKEN: ${{ secrets.GITCODE_TOKEN }}
         run: |
           TAG="${GITHUB_REF#refs/tags/}"
-          BODY=$(cat release_notes.md | jq -Rs .)
 
           # 检查是否已有同名 release（避免重复创建报错）
-          echo "Check if GitCode release already exists..."
-          EXISTING=$(curl -s --connect-timeout 30 --max-time 30 \
+          echo "::group::Check existing GitCode release"
+          EXISTING=$(curl -sS --connect-timeout 30 --max-time 30 \
             "https://api.gitcode.com/api/v5/repos/weixin_45444393/one-modbus/releases/tags/${TAG}" \
             -H "Authorization: Bearer ${GITCODE_TOKEN}")
           EXISTING_ID=$(echo "$EXISTING" | jq -r '.id // empty')
+          echo "::endgroup::"
+
           if [ -n "$EXISTING_ID" ]; then
             echo "Release ${TAG} already exists (id=$EXISTING_ID), skip creation"
             echo "$EXISTING_ID" > /tmp/gitcode_release_id.txt
           else
-            echo "Create GitCode release via v5 API..."
-            RESP=$(curl -s --connect-timeout 30 --max-time 60 -X POST \
+            echo "::group::Create GitCode release via v5 API"
+            # 用 jq --arg 构建 JSON，避免 shell 转义问题
+            jq -n --arg tag "$TAG" --arg name "one-modbus $TAG" \
+              --arg body "$(cat release_notes.md)" \
+              '{tag_name: $tag, name: $name, body: $body, target_commitish: "master"}' \
+              > /tmp/gitcode_release_payload.json
+
+            RESP=$(curl -sS --connect-timeout 30 --max-time 60 -X POST \
               "https://api.gitcode.com/api/v5/repos/weixin_45444393/one-modbus/releases" \
               -H "Content-Type: application/json" \
               -H "Authorization: Bearer ${GITCODE_TOKEN}" \
-              -d "{\"tag_name\":\"${TAG}\",\"name\":\"one-modbus ${TAG}\",\"body\":${BODY},\"target_commitish\":\"master\"}")
+              -d @/tmp/gitcode_release_payload.json)
+            echo "Response:"
+            echo "$RESP" | jq '{id, tag_name, name, message}' 2>/dev/null || echo "$RESP"
+            echo "::endgroup::"
+
             CREATED_ID=$(echo "$RESP" | jq -r '.id // empty')
             if [ -n "$CREATED_ID" ]; then
               echo "Created release id=$CREATED_ID"
               echo "$CREATED_ID" > /tmp/gitcode_release_id.txt
             else
-              echo "Create release failed:"
-              echo "$RESP" | jq '.' 2>/dev/null || echo "$RESP"
+              echo "ERROR: Create release failed."
               exit 1
             fi
           fi
