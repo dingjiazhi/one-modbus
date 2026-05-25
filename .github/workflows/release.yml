@@ -45,13 +45,19 @@ jobs:
           go mod init modbusrtu_broker
           go mod tidy
 
-      - name: Build EXE (CGO cross-compile for go-sqlite3)
-        run: |
-          BUILD_TIME=$(TZ='Asia/Shanghai' date '+%Y-%m-%d %H:%M')
-          sed -i "s/编译时间: [0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\} [0-9]\{2\}:[0-9]\{2\}/编译时间: ${BUILD_TIME}/" modbusrtu_broker.go
-          CGO_ENABLED=1 GOOS=windows GOARCH=amd64 CC=x86_64-w64-mingw32-gcc \
-          CGO_CFLAGS="-D_WIN32" CGO_LDFLAGS="-lws2_32" \
-          go build -ldflags '-s -w -extldflags=-static' -o modbusrtu_broker.exe modbusrtu_broker.go
+      - name: Build EXE (dummy for test)
+        # ⚠️ 测试用 dummy 文件，不编译真实 exe。正式发版时改回下方注释掉的真实编译
+        run: echo "dummy" > modbusrtu_broker.exe
+
+      # 正式发版时取消注释下方，注释掉上方 dummy
+
+      # - name: Build EXE (CGO cross-compile for go-sqlite3)
+      #   run: |
+      #     BUILD_TIME=$(TZ='Asia/Shanghai' date '+%Y-%m-%d %H:%M')
+      #     sed -i "s/编译时间: [0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\} [0-9]\{2\}:[0-9]\{2\}/编译时间: ${BUILD_TIME}/" modbusrtu_broker.go
+      #     CGO_ENABLED=1 GOOS=windows GOARCH=amd64 CC=x86_64-w64-mingw32-gcc \
+      #     CGO_CFLAGS="-D_WIN32" CGO_LDFLAGS="-lws2_32" \
+      #     go build -ldflags '-s -w -extldflags=-static' -o modbusrtu_broker.exe modbusrtu_broker.go
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
