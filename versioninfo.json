@@ -1,33 +1,34 @@
 {
-    "FixedFileInfo": {
-        "FileVersion": {
-            "Major": 0,
-            "Minor": 2,
-            "Patch": 18,
-            "Build": 0
-        },
-        "ProductVersion": {
-            "Major": 0,
-            "Minor": 2,
-            "Patch": 18,
-            "Build": 0
-        },
-        "FileFlagsMask": "3f",
-        "FileFlags": "00",
-        "FileOS": "040004",
-        "FileType": "01",
-        "FileSubType": "00"
+  "FixedFileInfo": {
+    "FileVersion": {
+      "Major": 0,
+      "Minor": 3,
+      "Patch": 4,
+      "Build": 0
     },
-    "StringFileInfo": {
-        "Comments": "获取新版: github.com/dingjiazhi/one-modbus/releases | gitee.com/dingjiazhi/one-modbus/releases",
-        "CompanyName": "丁家智",
-        "FileDescription": "modbusrtu_broker - Modbus RTU 采集网关 | GitHub: github.com/dingjiazhi/one-modbus/releases | Gitee: gitee.com/dingjiazhi/one-modbus/releases",
-        "InternalName": "modbusrtu_broker",
-        "LegalCopyright": "Copyright (C) 2026 丁家智",
-        "OriginalFilename": "modbusrtu_broker.exe",
-        "ProductName": "one-modbus",
-        "ProductVersion": "0.2.18.0"
+    "ProductVersion": {
+      "Major": 0,
+      "Minor": 3,
+      "Patch": 4,
+      "Build": 0
     },
-    "IconPath": "app.ico",
-    "ManifestPath": ""
+    "FileFlagsMask": "3f",
+    "FileFlags": "00",
+    "FileOS": "040004",
+    "FileType": "01",
+    "FileSubType": "00"
+  },
+  "StringFileInfo": {
+    "Comments": "获取新版: gitee.com/dingjiazhi/one-modbus/releases | github.com/dingjiazhi/one-modbus/releases",
+    "CompanyName": "丁家智",
+    "FileDescription": "modbusrtu_broker - Modbus RTU 数据采集网关 | 更新: gitee.com/dingjiazhi/one-modbus/releases | github.com/dingjiazhi/one-modbus/releases",
+    "FileVersion": "0.3.4.0",
+    "InternalName": "modbusrtu_broker",
+    "LegalCopyright": "Copyright (C) 2026 丁家智",
+    "OriginalFilename": "modbusrtu_broker.exe",
+    "ProductName": "one-modbus",
+    "ProductVersion": "0.3.4.0"
+  },
+  "IconPath": "app.ico",
+  "ManifestPath": ""
 }
