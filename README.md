@@ -68,7 +68,7 @@ A production-grade Modbus RTU gateway for Windows. Single `.exe`, no dependencie
 
 ## 架构图
 
-![架构图](docs/architecture-en.svg)
+![架构图](docs/architecture.svg)
 
 ---
 
@@ -78,28 +78,19 @@ AGPL-3.0
 
 ---
 
-# one-modbus — Modbus RTU Data Acquisition Gateway
+## English
 
-A production-grade Modbus RTU gateway for Windows. Single `.exe`, no dependencies.
+One .exe, no dependencies. Production-grade Modbus RTU gateway for Windows.
 
-📥 **Download**: [GitHub Releases](https://github.com/dingjiazhi/one-modbus/releases) | [Gitee (China)](https://gitee.com/dingjiazhi/one-modbus/releases)
+**Quick Start**: Download → Place Excel config → Double-click → Open browser
 
-### Quick Start
-1. Download `modbusrtu_broker.exe`
-2. Place `项目变量信息.xlsx` in the same directory (auto-generated if missing)
-3. Double-click, open **http://127.0.0.1:53046/统计**
+**Features**: Multi-port concurrent collection, zero-code Excel config, REST API, SQLite storage, WeChat/Email alerts, remote upgrade.
 
-### Key Features
-- Multi-port concurrent Modbus collection
-- Zero-code Excel configuration
-- REST API, SQLite storage, WeChat/Email alerts
-- Remote upgrade via browser
+**Architecture**:
 
-### Compatibility
-Windows 7+, Modbus RTU (RS-232/485), any Modbus device
-
-### Architecture
 ![Architecture](docs/architecture-en.svg)
+
+**License**: AGPL-3.0
 
 ### License
 AGPL-3.0
