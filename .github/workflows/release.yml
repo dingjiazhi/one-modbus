@@ -21,6 +21,11 @@ on:
     branches: [master]
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to base release on (e.g. v0.3.8)'
+        required: true
 
 jobs:
   build:
