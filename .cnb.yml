@@ -1,12 +1,21 @@
 "v*":
   tag_push:
-    - name: Build & Release
+    - name: Debug Build
       docker:
         image: golang:1.22-bookworm
       stages:
-        - name: run-build
+        - name: check
+          script: |
+            pwd
+            ls -la
+        - name: build
           script: |
             apt-get update -qq
-            apt-get install -y -qq gcc-mingw-w64-x86-64 mingw-w64-tools jq curl python3
-            go install github.com/josephspurrier/goversioninfo/cmd/goversioninfo@latest
-            bash .cnb/build.sh
+            apt-get install -y -qq gcc-mingw-w64-x86-64 mingw-w64-tools
+            go version
+            x86_64-w64-mingw32-gcc --version | head -1
+            printf 'package main; import "fmt"; func main() { fmt.Println("hello cgo") }' > /tmp/hello.go
+            export GOPROXY=direct
+            CGO_ENABLED=1 GOOS=windows GOARCH=amd64 CC=x86_64-w64-mingw32-gcc go build -o /tmp/hello.exe /tmp/hello.go
+            ls -lh /tmp/hello.exe
+            echo "BUILD OK"
