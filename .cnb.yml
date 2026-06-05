@@ -1,21 +1,48 @@
 "v*":
   tag_push:
-    - name: Debug Build
-      docker:
-        image: golang:1.22-bookworm
+    - docker:
+        image: golang:latest
       stages:
-        - name: check
+        - name: Cross-compile one-modbus.exe
           script: |
-            pwd
-            ls -la
-        - name: build
-          script: |
-            apt-get update -qq
-            apt-get install -y -qq gcc-mingw-w64-x86-64 mingw-w64-tools
+            set -e
+            echo "=== Tag: $(git describe --tags) ==="
+            echo "=== Go version ==="
             go version
+            echo "=== Install mingw-w64 ==="
+            apt-get update -qq && apt-get install -y -qq gcc-mingw-w64-x86-64 2>/dev/null
             x86_64-w64-mingw32-gcc --version | head -1
-            printf 'package main; import "fmt"; func main() { fmt.Println("hello cgo") }' > /tmp/hello.go
-            export GOPROXY=direct
-            CGO_ENABLED=1 GOOS=windows GOARCH=amd64 CC=x86_64-w64-mingw32-gcc go build -o /tmp/hello.exe /tmp/hello.go
-            ls -lh /tmp/hello.exe
-            echo "BUILD OK"
+            echo "=== Cross-compile ==="
+            export CGO_ENABLED=1 GOOS=windows GOARCH=amd64 CC=x86_64-w64-mingw32-gcc
+            export GOPROXY=https://goproxy.cn,direct
+            BUILD_TIME=$(TZ=Asia/Shanghai date '+%Y-%m-%d %H:%M')
+            sed -i "s/编译时间:.*/编译时间: $BUILD_TIME/" modbusrtu_broker.go
+            go mod download 2>&1
+            go build -o one-modbus.exe -ldflags="-s -w" . 2>&1
+            ls -lh one-modbus.exe
+        - name: Publish Release
+          script: |
+            set -e
+            [ ! -f one-modbus.exe ] && echo "No binary!" && ls -la && exit 1
+            OWNER="pdlei.cn" REPO="one-modbus" API="https://api.cnb.cool"
+            TAG=$(git describe --tags)
+            echo "Release tag: $TAG"
+            RID=$(curl -s -X POST "$API/$OWNER/$REPO/-/releases" \
+              -H "Authorization: Bearer $CNB_TOKEN" \
+              -H "Content-Type: application/json" \
+              -H "Accept: application/vnd.cnb.api+json" \
+              -d "{\"tag_name\":\"$TAG\",\"name\":\"one-modbus $TAG\",\"target_commitish\":\"master\"}" \
+              | grep -oP '"id":\K\d+')
+            [ -z "$RID" ] && echo "Release failed" && exit 1
+            UPLOAD=$(curl -s -X POST "$API/$OWNER/$REPO/-/releases/$RID/asset-upload-url" \
+              -H "Authorization: Bearer $CNB_TOKEN" \
+              -H "Content-Type: application/json" \
+              -H "Accept: application/vnd.cnb.api+json" \
+              -d "{\"asset_name\":\"one-modbus.exe\",\"size\":$(stat -c%s one-modbus.exe)}")
+            UPURL=$(echo "$UPLOAD" | grep -oP '"upload_url":"\K[^"]+')
+            VERURL=$(echo "$UPLOAD" | grep -oP '"verify_url":"\K[^"]+')
+            [ -z "$UPURL" ] && echo "Upload failed: $UPLOAD" && exit 1
+            curl -s -X PUT "$UPURL" -H "Content-Type: application/octet-stream" --data-binary "@one-modbus.exe"
+            curl -s -X POST "$VERURL" -H "Authorization: Bearer $CNB_TOKEN" -H "Accept: application/vnd.cnb.api+json"
+            echo ""
+            echo "Done: https://cnb.cool/$OWNER/$REPO/-/releases/download/$TAG/one-modbus.exe"
