@@ -1,4 +1,5 @@
-"v*":
+# 兜底匹配所有分支，处理 tag 自动构建（"v*" 分支模式可能不匹配 tag 推送）
+$:
   tag_push:
     - docker:
         image: golang:latest
