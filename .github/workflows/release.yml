@@ -58,7 +58,7 @@ jobs:
           VER="${GITHUB_REF#refs/tags/v}"  # v0.3.0 → 0.3.0
           VER_DOT="${VER}.0"                # 0.3.0 → 0.3.0.0 (Windows 4-part)
           IFS='.' read -ra PARTS <<< "$VER"
-          cat > versioninfo.json << EOF
+          cat > versioninfo.json <<-EOF
           {
           "FixedFileInfo": {
             "FileVersion": { "Major": ${PARTS[0]}, "Minor": ${PARTS[1]}, "Patch": ${PARTS[2]}, "Build": 0 },
@@ -112,22 +112,22 @@ jobs:
       - name: Generate release notes
         run: |
           VERSION="${GITHUB_REF#refs/tags/}"
-          cat > release_notes.md << EOF
-## one-modbus $VERSION
-
-Windows amd64 单文件 exe，无需安装，解压即用
-
-配置方法：同级目录放 项目变量信息.xlsx（没有会自动生成模板）
-双击 modbusrtu_broker.exe 启动
-浏览器打开 http://127.0.0.1:53046/统计 即可进入
-
-### 国内下载（自动构建）
-CNB Release（国内快 · 自动构建）：
-https://cnb.cool/pdlei.cn/one-modbus/-/releases/tag/$VERSION
-
-### 国际下载
-GitHub Releases：https://github.com/dingjiazhi/one-modbus/releases/tag/$VERSION
-EOF
+          {
+            echo "## one-modbus $VERSION"
+            echo ""
+            echo "Windows amd64 单文件 exe，无需安装，解压即用"
+            echo ""
+            echo "配置方法：同级目录放 项目变量信息.xlsx（没有会自动生成模板）"
+            echo "双击 modbusrtu_broker.exe 启动"
+            echo "浏览器打开 http://127.0.0.1:53046/统计 即可进入"
+            echo ""
+            echo "### 国内下载（自动构建）"
+            echo "CNB Release（国内快 · 自动构建）："
+            echo "https://cnb.cool/pdlei.cn/one-modbus/-/releases/tag/$VERSION"
+            echo ""
+            echo "### 国际下载"
+            echo "GitHub Releases：https://github.com/dingjiazhi/one-modbus/releases/tag/$VERSION"
+          } > release_notes.md
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
