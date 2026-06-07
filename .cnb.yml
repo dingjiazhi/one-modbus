@@ -12,8 +12,8 @@ master:
             echo "=== Install mingw-w64 ==="
             apt-get update -qq && apt-get install -y -qq gcc-mingw-w64-x86-64 2>/dev/null
             x86_64-w64-mingw32-gcc --version | head -1
-            echo "=== Install goversioninfo (only goproxy.cn, no direct) ==="
-            GOPROXY=https://goproxy.cn go install github.com/josephspurrier/goversioninfo/cmd/goversioninfo@latest
+            echo "=== Install goversioninfo ==="
+            GOPROXY=https://goproxy.cn,direct go install github.com/josephspurrier/goversioninfo/cmd/goversioninfo@latest
             echo "=== Generate .syso (version resources + icon) ==="
             ~/go/bin/goversioninfo -icon app.ico versioninfo.json
             echo "=== Cross-compile ==="
