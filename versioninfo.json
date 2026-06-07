@@ -3,13 +3,13 @@
     "FileVersion": {
       "Major": 0,
       "Minor": 3,
-      "Patch": 16,
+      "Patch": 17,
       "Build": 0
     },
     "ProductVersion": {
       "Major": 0,
       "Minor": 3,
-      "Patch": 16,
+      "Patch": 17,
       "Build": 0
     },
     "FileFlagsMask": "3f",
@@ -22,12 +22,12 @@
     "Comments": "下载新版: cnb.cool/pdlei.cn/one-modbus/releases | github.com/dingjiazhi/one-modbus/releases",
     "CompanyName": "丁家智",
     "FileDescription": "modbusrtu_broker - Modbus RTU 数据采集网关 | 更新: cnb.cool/pdlei.cn/one-modbus/releases | github.com/dingjiazhi/one-modbus/releases",
-    "FileVersion": "0.3.16.0",
+    "FileVersion": "0.3.17.0",
     "InternalName": "modbusrtu_broker",
     "LegalCopyright": "Copyright (C) 2026 丁家智",
     "OriginalFilename": "modbusrtu_broker.exe",
     "ProductName": "one-modbus",
-    "ProductVersion": "0.3.16.0"
+    "ProductVersion": "0.3.17.0"
   },
   "IconPath": "app.ico",
   "ManifestPath": ""
