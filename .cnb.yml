@@ -1,6 +1,5 @@
-# master.push 自动构建 + Release（验证过的流程）
-# 注意：此文件用于 CNB.cool 自动构建，与 GitHub Actions 同步
-# 版本号从 versioninfo.json 读取，确保两平台构建一致
+# master.push 自动构建 + Release（已验证的流程，昨日成功版基础上只改 tag）
+# 版本号从 versioninfo.json 读取，确保与 GitHub Actions 一致
 master:
   push:
     - docker:
@@ -14,14 +13,10 @@ master:
             echo "=== Install mingw-w64 ==="
             apt-get update -qq && apt-get install -y -qq gcc-mingw-w64-x86-64 2>/dev/null
             x86_64-w64-mingw32-gcc --version | head -1
-            echo "=== Install goversioninfo ==="
-            go install github.com/josephspurrier/goversioninfo/cmd/goversioninfo@latest
-            echo "=== Generate .syso (version resources) ==="
-            ~/go/bin/goversioninfo -icon app.ico versioninfo.json
             echo "=== Cross-compile ==="
             export CGO_ENABLED=1 GOOS=windows GOARCH=amd64 CC=x86_64-w64-mingw32-gcc
             export GOPROXY=https://goproxy.cn,direct
-            go mod download
+            go mod download 2>&1
             go build -o one-modbus.exe -ldflags="-s -w" . 2>&1
             ls -lh one-modbus.exe
         - name: Publish Release
@@ -29,48 +24,25 @@ master:
             set -e
             [ ! -f one-modbus.exe ] && echo "No binary!" && ls -la && exit 1
             OWNER="pdlei.cn" REPO="one-modbus" API="https://api.cnb.cool"
-
-            # 从 versioninfo.json 读取版本号，确保与 GitHub Actions 一致
-            # 注意：golang 镜像不含 python3，用 bash-only 解析
+            # 从 versioninfo.json 读取版本号（不依赖 python3，golang 镜像无 python）
             TAG=v$(grep -oP '"FileVersion":\s*"\K[^"]+' versioninfo.json | sed 's/\.0$//')
             echo "Release tag: $TAG"
-
-            # 检查是否已存在（防止 master.push 重复触发）
-            EXISTING=$(curl -s "$API/$OWNER/$REPO/-/releases/$TAG" \
+            RID=$(curl -s -X POST "$API/$OWNER/$REPO/-/releases" \
+              -H "Authorization: Bearer $CNB_TOKEN" \
+              -H "Content-Type: application/json" \
               -H "Accept: application/vnd.cnb.api+json" \
-              -H "Authorization: Bearer $CNB_TOKEN" | grep -oP '"id":\K\d+' | head -1)
-            if [ -n "$EXISTING" ]; then
-              echo "Release $TAG already exists (id=$EXISTING), skip create"
-              RID=$EXISTING
-            else
-              RESP=$(curl -s -X POST "$API/$OWNER/$REPO/-/releases" \
-                -H "Authorization: Bearer $CNB_TOKEN" \
-                -H "Content-Type: application/json" \
-                -H "Accept: application/vnd.cnb.api+json" \
-                -d "{\"tag_name\":\"$TAG\",\"name\":\"one-modbus $TAG\",\"target_commitish\":\"master\"}")
-              RID=$(echo "$RESP" | grep -oP '"id":\K\d+' | head -1)
-              [ -z "$RID" ] && echo "Release creation failed: $RESP" && exit 1
-              echo "Created release id=$RID"
-            fi
-
-            # 检查附件是否已存在
-            ASSETS=$(curl -s "$API/$OWNER/$REPO/-/releases/$RID" \
+              -d "{\"tag_name\":\"$TAG\",\"name\":\"one-modbus $TAG\",\"target_commitish\":\"master\"}" \
+              | grep -oP '"id":\K\d+')
+            [ -z "$RID" ] && echo "Release failed" && exit 1
+            UPLOAD=$(curl -s -X POST "$API/$OWNER/$REPO/-/releases/$RID/asset-upload-url" \
+              -H "Authorization: Bearer $CNB_TOKEN" \
+              -H "Content-Type: application/json" \
               -H "Accept: application/vnd.cnb.api+json" \
-              -H "Authorization: Bearer $CNB_TOKEN" | grep -oP '"assets":\[.*?\]' | grep -o '"id"' | wc -l)
-            if [ "$ASSETS" -gt 0 ]; then
-              echo "Assets already exist ($ASSETS files), skip upload"
-            else
-              UPLOAD=$(curl -s -X POST "$API/$OWNER/$REPO/-/releases/$RID/asset-upload-url" \
-                -H "Authorization: Bearer $CNB_TOKEN" \
-                -H "Content-Type: application/json" \
-                -H "Accept: application/vnd.cnb.api+json" \
-                -d "{\"asset_name\":\"modbusrtu_broker_$TAG.exe\",\"size\":$(stat -c%s one-modbus.exe)}")
-              UPURL=$(echo "$UPLOAD" | grep -oP '"upload_url":"\K[^"]+')
-              VERURL=$(echo "$UPLOAD" | grep -oP '"verify_url":"\K[^"]+')
-              [ -z "$UPURL" ] && echo "Upload failed: $UPLOAD" && exit 1
-              curl -s -X PUT "$UPURL" -H "Content-Type: application/octet-stream" --data-binary "@one-modbus.exe"
-              curl -s -X POST "$VERURL" -H "Authorization: Bearer $CNB_TOKEN" -H "Accept: application/vnd.cnb.api+json"
-              echo "Upload OK"
-            fi
+              -d "{\"asset_name\":\"modbusrtu_broker_$TAG.exe\",\"size\":$(stat -c%s one-modbus.exe)}")
+            UPURL=$(echo "$UPLOAD" | grep -oP '"upload_url":"\K[^"]+')
+            VERURL=$(echo "$UPLOAD" | grep -oP '"verify_url":"\K[^"]+')
+            [ -z "$UPURL" ] && echo "Upload failed: $UPLOAD" && exit 1
+            curl -s -X PUT "$UPURL" -H "Content-Type: application/octet-stream" --data-binary "@one-modbus.exe"
+            curl -s -X POST "$VERURL" -H "Authorization: Bearer $CNB_TOKEN" -H "Accept: application/vnd.cnb.api+json"
             echo ""
             echo "Release: https://cnb.cool/$OWNER/$REPO/-/releases/$TAG"
