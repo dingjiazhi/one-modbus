@@ -21,8 +21,7 @@ master:
             echo "=== Cross-compile ==="
             export CGO_ENABLED=1 GOOS=windows GOARCH=amd64 CC=x86_64-w64-mingw32-gcc
             export GOPROXY=https://goproxy.cn,direct
-            go mod tidy 2>&1
-            go mod download 2>&1
+            go mod download
             go build -o one-modbus.exe -ldflags="-s -w" . 2>&1
             ls -lh one-modbus.exe
         - name: Publish Release
